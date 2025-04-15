@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExamOnline - Plateforme mondiale d'examens</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Boxicons pour icones -->
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+</head>
+<body>
+    <!--  video de fond -->
+    <header class="hero">
+        <video autoplay muted loop class="hero-video">
+            <source src="vidio2.mp4" type="video/mp4">
+        </video>
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <h1>ExamOnline</h1>
+            <p>Rejoignez la révolution des examens en ligne, partout dans le monde</p>
+            <a href="#signup" class="cta-button">Découvrir maintenant</a>
+            <!-- Selecteur de langue -->
+            <select id="languageSelect" onchange="changeLanguage()">
+                <option value="fr">Français</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- Section description -->
+    <section class="description">
+        <h2>Une plateforme pour l’avenir de l’éducation</h2>
+        <p class="intro">
+            ExamOnline est votre partenaire pour des évaluations modernes et sécurisées. Conçue pour un public mondial, notre plateforme combine technologie de pointe et simplicité, avec des fonctionnalités comme :
+        </p>
+        <div class="features">
+            <div class="feature">
+                <i class="bx bx-globe"></i>
+                <h3>Accessibilité mondiale</h3>
+                <p>Disponible en plusieurs langues et sur tous les appareils, partout dans le monde.</p>
+            </div>
+            <div class="feature">
+                <i class="bx bx-brain"></i>
+                <h3>Surveillance IA</h3>
+                <p>Détection intelligente des comportements pour garantir l’intégrité des examens.</p>
+            </div>
+            <div class="feature">
+                <i class="bx bx-lock-alt"></i>
+                <h3>Sécurité avancée</h3>
+                <p>Cryptage AES-256 et conformité RGPD pour protéger vos données.</p>
+            </div>
+            <div class="feature">
+                <i class="bx bx-stats"></i>
+                <h3>Résultats instantanés</h3>
+                <p>Feedback détaillé et analyses visuelles pour étudiants et enseignants.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section inscription -->
+    <section id="signup" class="signup">
+        <h2>Commencez votre aventure</h2>
+        <div class="forms">
+            <!-- Formulaire etudiant -->
+            <form id="studentForm" onsubmit="registerStudent(event)">
+                <h3><i class="bx bx-user"></i> Étudiant</h3>
+                <div class="form-group">
+                    <label for="studentName">Nom complet</label>
+                    <input type="text" id="studentName" name="name" placeholder="Votre nom" required>
+                </div>
+                <div class="form-group">
+                    <label for="studentEmail">Email</label>
+                    <input type="email" id="studentEmail" name="email" placeholder="Votre email" required>
+                </div>
+                <div class="form-group">
+                    <label for="studentPassword">Mot de passe</label>
+                    <input type="password" id="studentPassword" name="password" placeholder="Votre mot de passe" required>
+                </div>
+                <button type="submit">S'inscrire</button>
+            </form>
+
+            <!-- Formulaire enseignant -->
+            <form id="teacherForm" onsubmit="registerTeacher(event)">
+                <h3><i class="bx bx-chalkboard"></i> Enseignant</h3>
+                <div class="form-group">
+                    <label for="teacherName">Nom complet</label>
+                    <input type="text" id="teacherName" name="name" placeholder="Votre nom" required>
+                </div>
+                <div class="form-group">
+                    <label for="teacherEmail">Email</label>
+                    <input type="email" id="teacherEmail" name="email" placeholder="Votre email" required>
+                </div>
+                <div class="form-group">
+                    <label for="teacherPassword">Mot de passe</label>
+                    <input type="password" id="teacherPassword" name="password" placeholder="Votre mot de passe" required>
+                </div>
+                <div class="form-group">
+                    <label for="institution">Établissement</label>
+                    <input type="text" id="institution" name="institution" placeholder="Votre établissement" required>
+                </div>
+                <button type="submit">S'inscrire</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Pied de page -->
+    <footer>
+        <p>© 2025 ExamOnline. Connectons l’éducation mondiale.</p>
+        <div class="footer-links">
+            <a href="#">Contact</a>
+            <a href="#">Support 24/7</a>
+            <a href="#">Confidentialité</a>
+            <a href="#">Conditions</a>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
