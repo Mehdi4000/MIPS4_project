@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExamOnline - Interface Enseignant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #007bff;
+            --secondary: #4a5568;
+            --background: #f8f9fa;
+            --text: #1a202c;
+            --white: #fff;
+            --error: #dc3545;
+            --border: #e2e8f0;
+            --sidebar-bg: #fff;
+            --sidebar-hover: #edf2f7;
+        }
+        body.dark {
+            --background: #1a202c;
+            --text: #e2e8f0;
+            --white: #2d3748;
+            --border: #4a5568;
+            --sidebar-bg: #2d3748;
+            --sidebar-hover: #4a5568;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+        body {
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: var(--background);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            margin-left: 260px;
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 240px;
+            height: 100%;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+        .logo {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 30px;
+        }
+        .nav-links {
+            list-style: none;
+        }
+        .nav-links li {
+            margin-bottom: 10px;
+        }
+        .nav-links a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 14px;
+            border-radius: 5px;
+            transition: background 0.2s;
+        }
+        .nav-links a:hover {
+            background: var(--sidebar-hover);
+        }
+        .nav-links i {
+            color: var(--primary);
+        }
+        .nav-links select,
+        .nav-links button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            background: var(--white);
+            color: var(--text);
+            font-size: 14px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        .toggle-sidebar {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: var(--primary);
+            color: var(--white);
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 101;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .section {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .section h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .form-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+        }
+        .form-group .options {
+            margin-top: 10px;
+        }
+        .form-group .option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .form-group .option input[type="text"] {
+            flex: 1;
+        }
+        .btn {
+            padding: 10px 20px;
+            font-size: 14px;
+            background: var(--primary);
+            color: var(--white);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        .error {
+            color: var(--error);
+            font-size: 13px;
+            display: none;
+            margin-top: 8px;
+        }
+        .import-status {
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        .toggle-list-btn {
+            display: none;
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--primary);
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        #passwordDisplay input[readonly] {
+            background: #e9ecef;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+                margin-left: 0;
+            }
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.hidden {
+                transform: translateX(0);
+            }
+            .toggle-sidebar {
+                display: block;
+            }
+            .header h1 {
+                font-size: 20px;
+            }
+            .section h2 {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="particles-js"></div>
+    <div class="toggle-sidebar"><i class="fas fa-bars"></i></div>
+    <nav class="sidebar">
+        <div class="logo">ExamOnline</div>
+        <ul class="nav-links">
+            <li><a href="#dashboard"><i class="fas fa-home"></i> Tableau de bord</a></li>
+            <li><a href="#exams"><i class="fas fa-file-alt"></i> Créer un examen</a></li>
+            <li><a href="logout.html"><i class="fas fa-sign-out-alt"></i> Déconnexion</a></li>
+            <li>
+                <select id="lang" onchange="changeLanguage()">
+                    <option value="fr">Français</option>
+                    <option value="en">English</option>
+                </select>
+            </li>
+            <li>
+                <button id="theme-toggle">🌙</button>
+            </li>
+        </ul>
+    </nav>
+    <div class="container">
+        <div class="header">
+            <h1>Créer un examen</h1>
+        </div>
+        <div class="section">
+            <h2>Informations sur l'examen</h2>
+            <form id="examForm" onsubmit="submitExam(event)">
+                <div class="form-group">
+                    <label for="examTitle">Titre de l'examen</label>
+                    <input type="text" id="examTitle" required aria-label="Titre de l'examen">
+                </div>
+                <div class="form-group">
+                    <label for="examDuration">Durée (en minutes)</label>
+                    <input type="number" id="examDuration" required aria-label="Durée de l'examen">
+                </div>
+                <div class="form-group">
+                    <label for="examDate">Date et heure de début</label>
+                    <input type="datetime-local" id="examDate" required aria-label="Date et heure de début">
+                </div>
+                <div class="form-group">
+                    <label for="filiereCible">Filière cible</label>
+                    <select id="filiereCible" required aria-label="Sélectionner une filière">
+                        <option value="">Sélectionner une filière</option>
+                        <option value="Informatique">Informatique</option>
+                        <option value="Mathématiques">Mathématiques</option>
+                        <option value="Physique">Physique</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="publicCible">Public cible</label>
+                    <select id="publicCible" required aria-label="Sélectionner un public cible">
+                        <option value="">Sélectionner un public</option>
+                        <option value="Licence 1">Licence 1</option>
+                        <option value="Licence 2">Licence 2</option>
+                        <option value="Master 1">Master 1</option>
+                        <option value="Master 2">Master 2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="webcam"> Activer la surveillance par webcam</label>
+                    <label><input type="checkbox" id="fullscreen"> Forcer le mode plein écran</label>
+                    <label><input type="checkbox" id="noAI"> Désactiver les outils d'IA</label>
+                </div>
+                <div class="form-group">
+                    <label for="questionText">Ajouter une question</label>
+                    <textarea id="questionText" rows="4" aria-label="Texte de la question"></textarea>
+                    <select id="questionType" aria-label="Type de question">
+                        <option value="qcm">QCM</option>
+                        <option value="ouverte">Ouverte</option>
+                    </select>
+                    <input type="number" id="questionPoints" placeholder="Points" aria-label="Points de la question">
+                    <input type="number" id="questionTimeLimit" placeholder="Temps limite (secondes)" aria-label="Temps limite de la question">
+                    <div id="qcmOptions" style="display: none;">
+                        <div class="option">
+                            <input type="text" placeholder="Option 1" aria-label="Option 1">
+                            <input type="radio" name="correctOption" value="0" aria-label="Option correcte">
+                        </div>
+                        <div class="option">
+                            <input type="text" placeholder="Option 2" aria-label="Option 2">
+                            <input type="radio" name="correctOption" value="1" aria-label="Option correcte">
+                        </div>
+                        <button type="button" class="btn" onclick="addOption()">Ajouter une option</button>
+                    </div>
+                    <div id="openAnswer" style="display: none;">
+                        <label for="expectedAnswer">Réponse attendue</label>
+                        <textarea id="expectedAnswer" rows="4" aria-label="Réponse attendue"></textarea>
+                    </div>
+                    <button type="button" class="btn" onclick="addQuestion()">Ajouter la question</button>
+                </div>
+                <div class="form-group">
+                    <label>Questions ajoutées (<span id="questionCount">0</span>)</label>
+                    <button type="button" class="toggle-list-btn" id="toggleQuestionList">Afficher la liste</button>
+                    <div class="list" id="questionList" style="display: none;"></div>
+                </div>
+                <div class="form-group">
+                    <label for="studentFile">Importer la liste des étudiants (Excel)</label>
+                    <input type="file" id="studentFile" accept=".xlsx, .xls" aria-label="Importer un fichier Excel">
+                    <div class="import-status" id="importStatus"></div>
+                    <button type="button" class="toggle-list-btn" id="toggleStudentList">Afficher la liste</button>
+                    <div class="list" id="studentList" style="display: none;"></div>
+                </div>
+                <div class="form-group" id="passwordDisplay" style="display: none;">
+                    <label for="examPassword">Mot de passe de l'examen</label>
+                    <input type="text" id="examPassword" readonly aria-label="Mot de passe de l'examen">
+                    <button type="button" class="btn" onclick="regeneratePassword()">Régénérer le mot de passe</button>
+                </div>
+                <button type="submit" class="btn">Finaliser l'examen</button>
+                <div class="error" id="errorMessage"></div>
+            </form>
+        </div>
+    </div>
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+    <script>
+        const translations = {
+            fr: {
+                createExam: "Créer un examen",
+                examInfo: "Informations sur l'examen",
+                oneQuestion: "Veuillez ajouter au moins une question.",
+                selectStudents: "Veuillez importer la liste des étudiants.",
+                selectFiliere: "Veuillez sélectionner une filière.",
+                selectPublic: "Veuillez sélectionner un public cible.",
+                invalidFile: "Erreur : Le fichier doit contenir au moins les colonnes Prénom et Nom.",
+                noValidStudents: "Erreur : Aucune ligne valide avec Prénom et Nom détectée.",
+                examCreated: "Examen créé avec succès. Les étudiants recevront une notification.",
+                databaseError: "Erreur lors de l'enregistrement dans la base de données.",
+                questionAdded: "Question ajoutée.",
+                invalidQuestion: "Veuillez remplir tous les champs de la question.",
+                invalidOptions: "Veuillez ajouter au moins deux options et sélectionner une réponse correcte pour le QCM.",
+                invalidAnswer: "Veuillez fournir une réponse attendue pour la question ouverte.",
+                invalidTimeLimit: "Veuillez spécifier un temps limite valide (en secondes).",
+                showList: "Afficher la liste",
+                hideList: "Masquer la liste"
+            },
+            en: {
+                createExam: "Create an Exam",
+                examInfo: "Exam Information",
+                oneQuestion: "Please add at least one question.",
+                selectStudents: "Please import the student list.",
+                selectFiliere: "Please select a field of study.",
+                selectPublic: "Please select a target audience.",
+                invalidFile: "Error: The file must contain at least the First Name and Last Name columns.",
+                noValidStudents: "Error: No valid rows with First Name and Last Name detected.",
+                examCreated: "Exam created successfully. Students will receive a notification.",
+                databaseError: "Error saving to the database.",
+                questionAdded: "Question added.",
+                invalidQuestion: "Please fill in all question fields.",
+                invalidOptions: "Please add at least two options and select a correct answer for the MCQ.",
+                invalidAnswer: "Please provide an expected answer for the open question.",
+                invalidTimeLimit: "Please specify a valid time limit (in seconds).",
+                showList: "Show list",
+                hideList: "Hide list"
+            }
+        };
+
+        let currentLang = 'fr';
+        let questions = [];
+        let students = [];
+        let studentCount = 0;
+        let isListVisible = false;
+        let isStudentListVisible = false;
+        let currentExamId = null;
+
+        const form = document.getElementById('examForm');
+        const questionText = document.getElementById('questionText');
+        const questionType = document.getElementById('questionType');
+        const questionPoints = document.getElementById('questionPoints');
+        const questionTimeLimit = document.getElementById('questionTimeLimit');
+        const qcmOptions = document.getElementById('qcmOptions');
+        const openAnswer = document.getElementById('openAnswer');
+        const expectedAnswer = document.getElementById('expectedAnswer');
+        const questionList = document.getElementById('questionList');
+        const questionCount = document.getElementById('questionCount');
+        const toggleQuestionList = document.getElementById('toggleQuestionList');
+        const studentFile = document.getElementById('studentFile');
+        const importStatus = document.getElementById('importStatus');
+        const studentList = document.getElementById('studentList');
+        const toggleStudentList = document.getElementById('toggleStudentList');
+        const filiereCible = document.getElementById('filiereCible');
+        const publicCible = document.getElementById('publicCible');
+        const errorMessage = document.getElementById('errorMessage');
+
+        function init() {
+            handleSidebar();
+            handleTheme();
+            updateLanguage();
+            handleQuestionType();
+            handleFileInput();
+        }
+
+        function handleSidebar() {
+            const toggleBtn = document.querySelector('.toggle-sidebar');
+            const sidebar = document.querySelector('.sidebar');
+            toggleBtn.onclick = () => sidebar.classList.toggle('hidden');
+        }
+
+        function handleTheme() {
+            const themeBtn = document.getElementById('theme-toggle');
+            themeBtn.onclick = () => {
+                document.body.classList.toggle('dark');
+                localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+                themeBtn.textContent = document.body.classList.contains('dark') ? '🌞' : '🌙';
+            };
+            if (localStorage.getItem('theme') === 'dark') {
+                document.body.classList.add('dark');
+                themeBtn.textContent = '🌞';
+            }
+        }
+
+        function changeLanguage() {
+            currentLang = document.getElementById('lang').value;
+            updateLanguage();
+        }
+
+        function updateLanguage() {
+            const t = translations[currentLang];
+            document.querySelector('.header h1').textContent = t.createExam;
+            document.querySelector('.section h2').textContent = t.examInfo;
+            toggleQuestionList.textContent = isListVisible ? t.hideList : t.showList;
+            toggleStudentList.textContent = isStudentListVisible ? t.hideList : t.showList;
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => errorMessage.style.display = 'none', 5000);
+        }
+
+        function handleQuestionType() {
+            questionType.onchange = () => {
+                qcmOptions.style.display = questionType.value === 'qcm' ? 'block' : 'none';
+                openAnswer.style.display = questionType.value === 'ouverte' ? 'block' : 'none';
+            };
+        }
+
+        function addOption() {
+            const options = qcmOptions.querySelectorAll('.option').length;
+            const div = document.createElement('div');
+            div.className = 'option';
+            div.innerHTML = `
+                <input type="text" placeholder="Option ${options + 1}" aria-label="Option ${options + 1}">
+                <input type="radio" name="correctOption" value="${options}" aria-label="Option correcte">
+            `;
+            qcmOptions.insertBefore(div, qcmOptions.lastElementChild);
+        }
+
+        function addQuestion() {
+            const t = translations[currentLang];
+            const text = questionText.value.trim();
+            const type = questionType.value;
+            const points = parseInt(questionPoints.value);
+            const timeLimit = parseInt(questionTimeLimit.value) || null;
+
+            if (!text || !points) {
+                showError(t.invalidQuestion);
+                return;
+            }
+
+            if (timeLimit !== null && (isNaN(timeLimit) || timeLimit <= 0)) {
+                showError(t.invalidTimeLimit);
+                return;
+            }
+
+            const question = { text, type, points, temps_limite: timeLimit };
+
+            if (type === 'qcm') {
+                const options = Array.from(qcmOptions.querySelectorAll('.option input[type="text"]')).map(input => input.value.trim());
+                const correctOption = qcmOptions.querySelector('input[name="correctOption"]:checked');
+
+                if (options.length < 2 || !correctOption || options.some(opt => !opt)) {
+                    showError(t.invalidOptions);
+                    return;
+                }
+
+                question.options = options;
+                question.correctOption = parseInt(correctOption.value);
+            } else if (type === 'ouverte') {
+                const expected = expectedAnswer.value.trim();
+                if (!expected) {
+                    showError(t.invalidAnswer);
+                    return;
+                }
+                question.reponse_attendue = expected;
+            }
+
+            questions.push(question);
+            questionText.value = '';
+            questionPoints.value = '';
+            questionTimeLimit.value = '';
+            expectedAnswer.value = '';
+            qcmOptions.querySelectorAll('.option').forEach((opt, i) => {
+                if (i >= 2) opt.remove();
+                else {
+                    opt.querySelector('input[type="text"]').value = '';
+                    opt.querySelector('input[type="radio"]').checked = false;
+                }
+            });
+            questionCount.textContent = questions.length;
+            toggleQuestionList.style.display = 'block';
+            updateQuestionsList();
+            showError(t.questionAdded);
+        }
+
+        function updateQuestionsList() {
+            questionList.innerHTML = '';
+            questions.forEach((q, i) => {
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                const details = q.type === 'qcm' ? `Options: ${q.options.join(', ')} (Correcte: ${q.options[q.correctOption]})` : `Réponse attendue: ${q.reponse_attendue || ''}`;
+                const timeLimitText = q.temps_limite ? `Temps limite: ${q.temps_limite}s` : 'Pas de temps limite';
+                div.innerHTML = `
+                    <span>${i + 1}. ${q.text} (${q.points} pts, ${q.type.toUpperCase()})<br>${details}<br>${timeLimitText}</span>
+                    <button class="btn" onclick="removeQuestion(${i})">Supprimer</button>
+                `;
+                questionList.appendChild(div);
+            });
+        }
+
+        function removeQuestion(index) {
+            questions.splice(index, 1);
+            questionCount.textContent = questions.length;
+            updateQuestionsList();
+            if (questions.length === 0) {
+                toggleQuestionList.style.display = 'none';
+                questionList.style.display = 'none';
+                isListVisible = false;
+                toggleQuestionList.textContent = translations[currentLang].showList;
+            }
+        }
+
+        toggleQuestionList.onclick = () => {
+            isListVisible = !isListVisible;
+            questionList.style.display = isListVisible ? 'block' : 'none';
+            toggleQuestionList.textContent = isListVisible ? translations[currentLang].hideList : translations[currentLang].showList;
+        };
+
+        function normalizeHeader(header) {
+            if (!header) return '';
+            return header.toString().toLowerCase()
+                .replace(/[éèêë]/g, 'e')
+                .replace(/[àâä]/g, 'a')
+                .replace(/[ùûü]/g, 'u')
+                .replace(/[îï]/g, 'i')
+                .replace(/[ôö]/g, 'o')
+                .replace(/\s+/g, '');
+        }
+
+        function handleFileInput() {
+            studentFile.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) {
+                    showError(translations[currentLang].invalidFile);
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = new Uint8Array(event.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
+
+                        if (json.length < 1 || !json[0] || json[0].length === 0) {
+                            showError(translations[currentLang].invalidFile);
+                            return;
+                        }
+
+                        const headers = json[0].map(h => normalizeHeader(h));
+                        const requiredHeaders = ['prenom', 'nom'];
+                        const hasRequiredHeaders = requiredHeaders.every(h => headers.includes(h));
+
+                        if (!hasRequiredHeaders) {
+                            showError(translations[currentLang].invalidFile);
+                            return;
+                        }
+
+                        students = [];
+                        studentCount = 0;
+
+                        const prenomIndex = headers.indexOf('prenom');
+                        const nomIndex = headers.indexOf('nom');
+                        const filiereIndex = headers.indexOf('filiere');
+
+                        for (let i = 1; i < json.length; i++) {
+                            const row = json[i];
+                            if (!row || row.length === 0) continue;
+
+                            const prenom = row[prenomIndex] ? row[prenomIndex].toString().trim() : '';
+                            const nom = row[nomIndex] ? row[nomIndex].toString().trim() : '';
+
+                            if (prenom && nom) {
+                                const filiere = filiereIndex !== -1 && row[filiereIndex] ? row[filiereIndex].toString().trim() : null;
+                                const email = `${prenom.toLowerCase().replace(/\s/g, '')}.${nom.toLowerCase().replace(/\s/g, '')}@universite.com`;
+
+                                students.push({ prenom, nom, filiere, email });
+                                studentCount++;
+                            }
+                        }
+
+                        if (studentCount === 0) {
+                            showError(translations[currentLang].noValidStudents);
+                            return;
+                        }
+
+                        importStatus.textContent = `${studentCount} étudiant(s) importé(s).`;
+                        importStatus.style.color = 'var(--primary)';
+                        toggleStudentList.style.display = 'block';
+                        updateStudentList();
+                    } catch (err) {
+                        console.error('Erreur lors de la lecture du fichier :', err);
+                        showError(translations[currentLang].invalidFile);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            };
+        }
+
+        function updateStudentList() {
+            studentList.innerHTML = '';
+            students.forEach((s, i) => {
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                div.innerHTML = `
+                    <span>${s.prenom} ${s.nom} (${s.filiere || 'Non spécifiée'})</span>
+                    <button class="btn" onclick="removeStudent(${i})">Supprimer</button>
+                `;
+                studentList.appendChild(div);
+            });
+        }
+
+        function removeStudent(index) {
+            students.splice(index, 1);
+            studentCount--;
+            importStatus.textContent = `${studentCount} étudiant(s) importé(s).`;
+            updateStudentList();
+            if (studentCount === 0) {
+                toggleStudentList.style.display = 'none';
+                studentList.style.display = 'none';
+                isStudentListVisible = false;
+                toggleStudentList.textContent = translations[currentLang].showList;
+            }
+        }
+
+        toggleStudentList.onclick = () => {
+            isStudentListVisible = !isStudentListVisible;
+            studentList.style.display = isStudentListVisible ? 'block' : 'none';
+            toggleStudentList.textContent = isStudentListVisible ? translations[currentLang].hideList : translations[currentLang].showList;
+        };
+
+        async function submitExam(e) {
+            e.preventDefault();
+            const t = translations[currentLang];
+            if (questions.length === 0) return showError(t.oneQuestion);
+            if (students.length === 0) return showError(t.selectStudents);
+            if (!filiereCible.value) return showError(t.selectFiliere);
+            if (!publicCible.value) return showError(t.selectPublic);
+
+            const exam = {
+                title: document.getElementById('examTitle').value,
+                duration: parseInt(document.getElementById('examDuration').value),
+                filiereCible: filiereCible.value,
+                publicCible: publicCible.value,
+                webcam: document.getElementById('webcam').checked ? 1 : 0,
+                fullscreen: document.getElementById('fullscreen').checked ? 1 : 0,
+                noAI: document.getElementById('noAI').checked ? 1 : 0,
+                questions,
+                students,
+                date_debut: document.getElementById('examDate').value,
+                matiere_id: 1, // À remplacer par une valeur dynamique si nécessaire
+                createur_id: 1 // À remplacer par l'ID de l'utilisateur connecté
+            };
+
+            try {
+                const response = await fetch('http://localhost:3000/api/exams', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(exam)
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || t.databaseError);
+                }
+
+                currentExamId = result.examId;
+                document.getElementById('examPassword').value = result.mot_de_passe;
+                document.getElementById('passwordDisplay').style.display = 'block';
+
+                importStatus.textContent = t.examCreated;
+                importStatus.style.color = 'var(--primary)';
+                questions = [];
+                students = [];
+                studentCount = 0;
+                isListVisible = false;
+                isStudentListVisible = false;
+                updateQuestionsList();
+                updateStudentList();
+                toggleQuestionList.style.display = 'none';
+                toggleStudentList.style.display = 'none';
+                form.reset();
+            } catch (err) {
+                console.error('Erreur dans submitExam :', err);
+                showError(`${t.databaseError} : ${err.message}`);
+            }
+        }
+
+        async function regeneratePassword() {
+            if (!currentExamId) {
+                showError('Aucun examen sélectionné.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/exams/${currentExamId}/password`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Erreur lors de la régénération du mot de passe');
+                }
+
+                document.getElementById('examPassword').value = result.mot_de_passe;
+            } catch (err) {
+                console.error('Erreur dans regeneratePassword :', err);
+                showError('Erreur : ' + err.message);
+            }
+        }
+
+        particlesJS('particles-js', {
+            particles: {
+                number: { value: 80, density: { enable: true, value_area: 800 } },
+                color: { value: ['#007bff', '#4a5568', '#6b7280'] },
+                shape: { type: 'circle' },
+                opacity: { value: 0.5, random: true },
+                size: { value: 3, random: true },
+                move: { enable: true, speed: 2, direction: 'none', random: true }
+            },
+            interactivity: {
+                events: { onhover: { enable: true, mode: 'repulse' } }
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
