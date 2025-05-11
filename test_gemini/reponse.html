@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Examen - Réponse</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1, h2 {
+      color: #007bff;
+    }
+    #questionText {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    #timer {
+      font-weight: bold;
+      color: #dc3545;
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    textarea, input[type="number"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 5px;
+      margin-bottom: 15px;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Examen - Question <span id="questionNumber">1</span>/2</h1>
+  <div id="questionText">Chargement de la question...</div>
+  <div id="timer">Temps restant : 60 secondes</div>
+  <form id="verifForm" action="/verifier" method="post">
+    <input type="hidden" name="question_id" id="questionId">
+    <input type="hidden" name="examen_id" id="examenId" value="1">
+    <input type="hidden" name="utilisateur_id" id="utilisateurId" value="2">
+    <input type="hidden" name="question_index" id="questionIndex" value="0">
+    <label>Note (5 points) :</label>
+    <input type="number" name="note" value="5" readonly><br/><br/>
+
+    <label>Votre réponse :</label>
+    <textarea name="etudiant" rows="3" cols="50" required></textarea><br/><br/>
+
+    <button type="submit">Soumettre</button>
+  </form>
+  <script>
+    let timeLeft = 60;
+    const timerElement = document.getElementById("timer");
+    const form = document.getElementById("verifForm");
+    const questionText = document.getElementById("questionText");
+    const questionId = document.getElementById("questionId");
+    const examenId = document.getElementById("examenId");
+    const utilisateurId = document.getElementById("utilisateurId");
+    const questionIndex = document.getElementById("questionIndex");
+    const questionNumber = document.getElementById("questionNumber");
+
+    // Récupérer les paramètres d'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const examen_id = urlParams.get('examen_id') || '1';
+    const question_index = parseInt(urlParams.get('question_index') || '0', 10);
+    const utilisateur_id = urlParams.get('utilisateur_id') || '2';
+
+    examenId.value = examen_id;
+    utilisateurId.value = utilisateur_id;
+    questionIndex.value = question_index;
+    questionNumber.textContent = question_index + 1;
+
+    // Récupérer les questions
+    fetch(`/api/questions/${examen_id}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          questionText.textContent = 'Erreur : ' + data.error;
+          console.error('Erreur API :', data.error);
+        } else if (data[question_index]) {
+          questionText.textContent = data[question_index].texte;
+          questionId.value = data[question_index].id;
+          timeLeft = data[question_index].time_limit || 60;
+          timerElement.textContent = `Temps restant : ${timeLeft} secondes`;
+        } else {
+          questionText.textContent = 'Erreur : Question introuvable.';
+          console.error('Question introuvable pour index :', question_index);
+        }
+      })
+      .catch(err => {
+        questionText.textContent = 'Erreur lors du chargement de la question.';
+        console.error('Erreur fetch :', err);
+      });
+
+    // Minuteur
+    const timer = setInterval(() => {
+      timeLeft--;
+      timerElement.textContent = `Temps restant : ${timeLeft} secondes`;
+      if (timeLeft <= 0) {
+        clearInterval(timer);
+        form.submit();
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
