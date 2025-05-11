@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Système Anti-Triche - Examen en Ligne</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    nav {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 1rem;
+      position: fixed;
+      width: 100%;
+      z-index: 10;
+    }
+    nav a {
+      color: #fff;
+      text-decoration: none;
+      margin: 0 1rem;
+    }
+    nav a:hover {
+      color: #00ffcc;
+    }
+    .container {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      flex: 1;
+      padding: 2rem;
+      margin-top: 80px;
+      gap: 1rem;
+    }
+    .video-container {
+      position: relative;
+    }
+    #webcam {
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+    #alert {
+      background: rgba(255, 50, 50, 0.8);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      display: none;
+      font-weight: bold;
+    }
+    .status {
+      margin-top: 1rem;
+      font-size: 1.2rem;
+    }
+    .form-container {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      width: 300px;
+    }
+    .form-container label {
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+    .form-container input, .form-container textarea {
+      width: 100%;
+      padding: 0.5rem;
+      border: none;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+    }
+    .form-container input[readonly], .form-container textarea[readonly] {
+      cursor: not-allowed;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    .alert-active {
+      animation: pulse 1s infinite;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="#home">Accueil</a>
+    <a href="#exam">Examen</a>
+    <a href="#profile">Profil</a>
+  </nav>
+  <div class="container">
+    <div class="video-container">
+      <video id="webcam" autoplay playsinline width="640" height="480"></video>
+      <canvas id="canvas" width="640" height="480"></canvas>
+      <div id="alert">Comportement suspect détecté ! Veuillez rester face à l'écran.</div>
+      <div class="status">Statut : Surveillance active</div>
+    </div>
+    <div class="form-container">
+      <form>
+        <label for="faceCount">Nombre de visages détectés :</label>
+        <input type="number" id="faceCount" value="0" readonly>
+        <label for="gazeStatus">État du regard :</label>
+        <input type="text" id="gazeStatus" value="Normal" readonly>
+        <label for="objectStatus">Objets détectés :</label>
+        <textarea id="objectStatus" readonly></textarea>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function showError(message) {
+      const alertElement = document.getElementById('alert');
+      alertElement.textContent = message;
+      alertElement.style.display = 'block';
+      alertElement.classList.add('alert-active');
+      console.error(message);
+    }
+
+    // Vérifier le chargement des bibliothèques
+    if (typeof FaceMesh === 'undefined') {
+      showError('Erreur : FaceMesh n\'est pas chargé.');
+      throw new Error('FaceMesh not loaded');
+    }
+    if (typeof tf === 'undefined') {
+      showError('Erreur : TensorFlow.js n\'est pas chargé.');
+      throw new Error('TensorFlow.js not loaded');
+    }
+    if (typeof cocoSsd === 'undefined') {
+      showError('Erreur : COCO-SSD n\'est pas chargé.');
+      throw new Error('COCO-SSD not loaded');
+    }
+
+    const videoElement = document.getElementById('webcam');
+    const canvasElement = document.getElementById('canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+    const alertElement = document.getElementById('alert');
+    const faceCountInput = document.getElementById('faceCount');
+    const gazeStatusInput = document.getElementById('gazeStatus');
+    const objectStatusInput = document.getElementById('objectStatus');
+    let alertCount = 0;
+    let outOfFrameCount = 0;
+    let gazeOffScreenCount = 0;
+    let objectModel;
+
+    // Charger le modèle COCO-SSD
+    async function loadObjectDetectionModel() {
+      try {
+        objectModel = await cocoSsd.load();
+        console.log('COCO-SSD model loaded successfully');
+      } catch (err) {
+        showError('Erreur lors du chargement de COCO-SSD : ' + err.message);
+      }
+    }
+    loadObjectDetectionModel();
+
+    // Initialiser FaceMesh
+    const faceMesh = new FaceMesh({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`,
+    });
+
+    faceMesh.setOptions({
+      maxNumFaces: 2,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    });
+
+    // Fonction pour logger les événements de triche
+    async function logCheatingEvent(message) {
+      try {
+        const response = await fetch('http://localhost:3000/api/cheating', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            userId: localStorage.getItem('userId'),
+            examId: localStorage.getItem('currentExamId'),
+            message: message,
+            timestamp: new Date().toISOString()
+          })
+        });
+        if (!response.ok) {
+          console.error('Failed to log cheating event:', response.status);
+        }
+      } catch (err) {
+        console.error('Error logging cheating event:', err);
+      }
+    }
+
+    faceMesh.onResults(async (results) => {
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+
+      alertElement.style.display = 'none';
+      alertElement.classList.remove('alert-active');
+
+      const faceCount = results.multiFaceLandmarks ? results.multiFaceLandmarks.length : 0;
+      faceCountInput.value = faceCount;
+
+      // Détection des objets
+      if (objectModel) {
+        try {
+          const predictions = await objectModel.detect(videoElement);
+          let detectedObjects = [];
+          predictions.forEach((prediction) => {
+            if (['cell phone', 'book'].includes(prediction.class) && prediction.score > 0.5) {
+              detectedObjects.push(prediction.class);
+              canvasCtx.beginPath();
+              canvasCtx.rect(prediction.bbox[0], prediction.bbox[1], prediction.bbox[2], prediction.bbox[3]);
+              canvasCtx.strokeStyle = 'yellow';
+              canvasCtx.lineWidth = 2;
+              canvasCtx.stroke();
+            }
+          });
+          objectStatusInput.value = detectedObjects.length > 0 ? detectedObjects.join(', ') : 'Aucun';
+          if (detectedObjects.includes('cell phone')) {
+            alertElement.style.display = 'block';
+            alertElement.classList.add('alert-active');
+            alertElement.textContent = 'Téléphone détecté ! Les appareils sont interdits.';
+            console.log('Cell phone detected!');
+            logCheatingEvent('Téléphone détecté');
+          }
+        } catch (err) {
+          console.error('Object detection error:', err);
+        }
+      }
+
+      if (results.multiFaceLandmarks) {
+        for (const landmarks of results.multiFaceLandmarks) {
+          const leftEye = landmarks[33];
+          const rightEye = landmarks[263];
+          const nose = landmarks[1];
+          const leftCheek = landmarks[234];
+          const rightCheek = landmarks[454];
+          const leftIris = landmarks[468]; // Iris gauche
+          const rightIris = landmarks[473]; // Iris droit
+
+          // Dessiner le cadre autour du visage
+          const minX = Math.min(leftEye.x, leftCheek.x, rightEye.x, rightCheek.x) * canvasElement.width;
+          const maxX = Math.max(leftEye.x, leftCheek.x, rightEye.x, rightCheek.x) * canvasElement.width;
+          const minY = Math.min(leftEye.y, nose.y, rightEye.y) * canvasElement.height;
+          const maxY = Math.max(leftEye.y, nose.y, rightEye.y) * canvasElement.height;
+          canvasCtx.beginPath();
+          canvasCtx.rect(minX - 20, minY - 20, maxX - minX + 40, maxY - minY + 40);
+          canvasCtx.strokeStyle = 'green';
+          canvasCtx.lineWidth = 2;
+          canvasCtx.stroke();
+
+          // Dessiner les points des yeux et iris
+          [33, 263, 468, 473].forEach((index) => {
+            const landmark = landmarks[index];
+            const x = landmark.x * canvasElement.width;
+            const y = landmark.y * canvasElement.height;
+            canvasCtx.beginPath();
+            canvasCtx.arc(x, y, index >= 468 ? 2 : 3, 0, 2 * Math.PI);
+            canvasCtx.fillStyle = index >= 468 ? 'blue' : 'red';
+            canvasCtx.fill();
+          });
+
+          // Détection améliorée du regard
+          const leftEyeCenterX = leftEye.x;
+          const rightEyeCenterX = rightEye.x;
+          const leftIrisRelX = leftIris.x - leftEyeCenterX;
+          const rightIrisRelX = rightIris.x - rightEyeCenterX;
+          const leftIrisRelY = leftIris.y - leftEye.y;
+          const rightIrisRelY = rightIris.y - rightEye.y;
+
+          let gazeStatus = 'Normal';
+          let alertMessage = '';
+
+          // Seuil pour détection horizontale (gauche/droite)
+          const horizontalThreshold = 0.02;
+          // Seuil pour détection verticale (haut/bas)
+          const verticalThreshold = 0.015;
+
+          if (leftIrisRelX > horizontalThreshold && rightIrisRelX > horizontalThreshold) {
+            gazeStatus = 'Regard à droite';
+            alertMessage = 'Regard à droite ! Veuillez regarder l\'écran.';
+            gazeOffScreenCount++;
+          } else if (leftIrisRelX < -horizontalThreshold && rightIrisRelX < -horizontalThreshold) {
+            gazeStatus = 'Regard à gauche';
+            alertMessage = 'Regard à gauche ! Veuillez regarder l\'écran.';
+            gazeOffScreenCount++;
+          } else if (leftIrisRelY < -verticalThreshold && rightIrisRelY < -verticalThreshold) {
+            gazeStatus = 'Regard en haut';
+            alertMessage = 'Regard en haut ! Veuillez regarder l\'écran.';
+            gazeOffScreenCount++;
+          } else if (leftIrisRelY > verticalThreshold && rightIrisRelY > verticalThreshold) {
+            gazeStatus = 'Regard en bas';
+            alertMessage = 'Regard en bas ! Veuillez regarder l\'écran.';
+            gazeOffScreenCount++;
+          } else {
+            gazeStatus = 'Normal';
+            gazeOffScreenCount = Math.max(0, gazeOffScreenCount - 1);
+          }
+
+          gazeStatusInput.value = gazeStatus;
+
+          if (gazeOffScreenCount > 30) {
+            alertElement.style.display = 'block';
+            alertElement.classList.add('alert-active');
+            alertElement.textContent = alertMessage;
+            console.log(gazeStatus);
+            logCheatingEvent(gazeStatus);
+          }
+
+          // Vérifier si le visage est dans le cadre
+          const isOutOfFrame = minX < 0 || maxX > canvasElement.width || minY < 0 || maxY > canvasElement.height;
+          if (isOutOfFrame) {
+            outOfFrameCount++;
+            if (outOfFrameCount > 30) {
+              alertElement.style.display = 'block';
+              alertElement.classList.add('alert-active');
+              alertElement.textContent = 'Visage hors du cadre ! Veuillez rester dans le champ de la caméra.';
+              console.log('Face out of frame!');
+              logCheatingEvent('Visage hors du cadre');
+            }
+          } else {
+            outOfFrameCount = 0;
+          }
+
+          // Détecter la rotation du visage
+          const headRotation = Math.abs(nose.x - (leftEye.x + rightEye.x) / 2);
+          const verticalGaze = nose.y;
+          if (!isOutOfFrame && (headRotation > 0.3 || verticalGaze < 0.3 || verticalGaze > 0.7)) {
+            alertCount++;
+            if (alertCount > 30) {
+              alertElement.style.display = 'block';
+              alertElement.classList.add('alert-active');
+              alertElement.textContent = 'Comportement suspect détecté ! Veuillez rester face à l\'écran.';
+              console.log('Suspicious behavior detected!');
+              logCheatingEvent('Comportement suspect (rotation du visage)');
+            }
+          } else {
+            alertCount = 0;
+          }
+        }
+
+        if (faceCount > 1) {
+          alertElement.style.display = 'block';
+          alertElement.classList.add('alert-active');
+          alertElement.textContent = 'Plusieurs visages détectés ! Un seul étudiant est autorisé.';
+          console.log('Multiple faces detected!');
+          logCheatingEvent('Plusieurs visages détectés');
+        }
+      } else {
+        alertCount++;
+        outOfFrameCount++;
+        gazeStatusInput.value = 'Aucun visage';
+        if (alertCount > 30) {
+          alertElement.style.display = 'block';
+          alertElement.classList.add('alert-active');
+          alertElement.textContent = 'Aucun visage détecté ! Veuillez rester face à la caméra.';
+          console.log('No face detected!');
+          logCheatingEvent('Aucun visage détecté');
+        }
+        if (outOfFrameCount > 30) {
+          alertElement.style.display = 'block';
+          alertElement.classList.add('alert-active');
+          alertElement.textContent = 'Visage hors du cadre ! Veuillez rester dans le champ de la caméra.';
+          console.log('Face out of frame!');
+          logCheatingEvent('Visage hors du cadre');
+        }
+      }
+      canvasCtx.restore();
+    });
+
+    // Initialiser la caméra
+    async function startCamera() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        if (videoDevices.length === 0) {
+          showError('Aucune webcam détectée. Veuillez connecter une webcam.');
+          return;
+        }
+        console.log('Available video devices:', videoDevices);
+
+        const camera = new Camera(videoElement, {
+          onFrame: async () => {
+            await faceMesh.send({ image: videoElement });
+          },
+          width: 640,
+          height: 480,
+        });
+        await camera.start();
+        console.log('Camera started successfully');
+      } catch (err) {
+        showError('Erreur lors de l\'initialisation de la caméra : ' + err.message);
+        console.error('Camera error:', err);
+      }
+    }
+
+    startCamera();
+  </script>
+</body>
+</html>

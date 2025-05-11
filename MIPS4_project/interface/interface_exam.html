@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExamOnline - Passer un Examen</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+        body {
+            background: #041125;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: background 0.3s, color 0.3s;
+        }
+        body.light {
+            background: #f0f0f5;
+            color: #333;
+        }
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            list-style: none;
+        }
+        .nav-links li {
+            margin-left: 20px;
+        }
+        .nav-links a {
+            color: inherit;
+            text-decoration: none;
+            font-size: 16px;
+            transition: color 0.3s;
+        }
+        .nav-links a:hover {
+            color: #00aaff;
+        }
+        #lang, #theme-toggle {
+            background: transparent;
+            color: inherit;
+            border: 1px solid currentColor;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 100px auto;
+            padding: 20px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 170, 255, 0.3);
+            animation: slideIn 0.5s ease-out;
+            position: relative;
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00aaff, #f2f21f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .timer {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #00aaff;
+        }
+        .question-container {
+            margin-bottom: 20px;
+        }
+        .question-text {
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .choice {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .choice:hover {
+            background: rgba(0, 170, 255, 0.2);
+        }
+        .choice input {
+            margin-right: 10px;
+        }
+        .open-answer {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .open-answer:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(0, 170, 255, 0.5);
+        }
+        .btn {
+            background: linear-gradient(45deg, #00aaff, #f2f21f);
+            padding: 12px 30px;
+            border-radius: 25px;
+            color: #fff;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 170, 255, 0.5);
+        }
+        .error {
+            color: #ff4d4d;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            font-size: 16px;
+        }
+        .video-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            z-index: 1000;
+        }
+        #webcam {
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            width: 100%;
+        }
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        #cheat-alert {
+            background: rgba(255, 50, 50, 0.8);
+            padding: 0.5rem;
+            border-radius: 8px;
+            margin-top: 0.5rem;
+            display: none;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .alert-active {
+            animation: pulse 1s infinite;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @media (max-width: 768px) {
+            .container {
+                margin: 80px 15px;
+                padding: 15px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            .question-text {
+                font-size: 18px;
+            }
+            .video-container {
+                width: 150px;
+                bottom: 10px;
+                right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">ExamOnline</div>
+        <ul class="nav-links">
+            <li><a href="#" onclick="confirmExit()">Quitter l'examen</a></li>
+            <li>
+                <select id="lang" onchange="changeLanguage()" aria-label="Changer de langue">
+                    <option value="fr">Français</option>
+                    <option value="en">English</option>
+                </select>
+            </li>
+            <li>
+                <button id="theme-toggle" aria-label="Basculer le thème">🌙</button>
+            </li>
+        </ul>
+    </nav>
+    <div class="container">
+        <h1 id="examTitle">Examen - Question <span id="questionIndex">1</span>/<span id="totalQuestions">?</span></h1>
+        <div class="timer" id="timer">Temps restant : ?</div>
+        <div class="question-container" id="questionContainer">
+            <div class="question-text" id="questionText">Chargement de la question...</div>
+            <div class="choices" id="choices"></div>
+            <textarea class="open-answer" id="openAnswer" style="display: none;"></textarea>
+        </div>
+        <div id="points">Note : ? points</div>
+        <button class="btn" id="submitBtn" onclick="submitAnswer()">Soumettre</button>
+        <div class="error" id="errorMessage"></div>
+        <div class="result" id="result" style="display: none;"></div>
+    </div>
+    <div class="video-container">
+        <video id="webcam" autoplay playsinline width="200" height="150"></video>
+        <canvas id="canvas" width="200" height="150"></canvas>
+        <div id="cheat-alert">Comportement suspect détecté !</div>
+    </div>
+
+    <script>
+        const translations = {
+            fr: {
+                examTitle: "Examen - Question {index}/{total}",
+                timeRemaining: "Temps restant : {time}",
+                loadingQuestion: "Chargement de la question...",
+                points: "Note : {points} points",
+                submit: "Soumettre",
+                error: "Erreur : {message}",
+                selectAnswer: "Veuillez sélectionner une réponse.",
+                enterAnswer: "Veuillez entrer une réponse.",
+                examFinished: "Examen terminé ! Score final : {score}/{max_score}",
+                serverError: "Erreur lors de la communication avec le serveur.",
+                unauthorized: "Session expirée. Veuillez vous reconnecter.",
+                cheatDetected: "Comportement suspect détecté ! Veuillez rester face à l'écran.",
+                phoneDetected: "Téléphone détecté ! Les appareils sont interdits.",
+                multipleFaces: "Plusieurs visages détectés ! Un seul étudiant est autorisé.",
+                noFace: "Aucun visage détecté ! Veuillez rester face à la caméra.",
+                faceOutOfFrame: "Visage hors du cadre ! Veuillez rester dans le champ de la caméra.",
+                gazeLeft: "Regard à gauche ! Veuillez regarder l'écran.",
+                gazeRight: "Regard à droite ! Veuillez regarder l'écran.",
+                gazeUp: "Regard en haut ! Veuillez regarder l'écran.",
+                gazeDown: "Regard en bas ! Veuillez regarder l'écran.",
+                suspiciousRotation: "Comportement suspect (rotation du visage) ! Veuillez rester face à l'écran."
+            },
+            en: {
+                examTitle: "Exam - Question {index}/{total}",
+                timeRemaining: "Time remaining: {time}",
+                loadingQuestion: "Loading question...",
+                points: "Points: {points} points",
+                submit: "Submit",
+                error: "Error: {message}",
+                selectAnswer: "Please select an answer.",
+                enterAnswer: "Please enter an answer.",
+                examFinished: "Exam completed! Final score: {score}/{max_score}",
+                serverError: "Error communicating with the server.",
+                unauthorized: "Session expired. Please log in again.",
+                cheatDetected: "Suspicious behavior detected! Please face the screen.",
+                phoneDetected: "Phone detected! Devices are prohibited.",
+                multipleFaces: "Multiple faces detected! Only one student is allowed.",
+                noFace: "No face detected! Please stay in front of the camera.",
+                faceOutOfFrame: "Face out of frame! Please stay within the camera's view.",
+                gazeLeft: "Looking left! Please look at the screen.",
+                gazeRight: "Looking right! Please look at the screen.",
+                gazeUp: "Looking up! Please look at the screen.",
+                gazeDown: "Looking down! Please look at the screen.",
+                suspiciousRotation: "Suspicious behavior (head rotation)! Please face the screen."
+            }
+        };
+
+        let currentLang = 'fr';
+        let questions = [];
+        let currentQuestionIndex = parseInt(localStorage.getItem('currentQuestionIndex')) || 0;
+        let examId = localStorage.getItem('currentExamId');
+        let userId = localStorage.getItem('userId');
+        let token = localStorage.getItem('token');
+        let totalScore = 0;
+        let maxScore = 0;
+        let camera;
+        let objectModel;
+        let alertCount = 0;
+        let outOfFrameCount = 0;
+        let gazeOffScreenCount = 0;
+        let lastCheatLog = 0;
+
+        async function init() {
+            console.log('Initializing exam:', { examId, userId, token });
+            if (!examId || !userId || !token) {
+                showError(translations[currentLang].unauthorized);
+                console.error('Missing required data:', { examId, userId, token });
+                setTimeout(() => window.location.href = 'login.html', 2000);
+                return;
+            }
+
+            handleTheme();
+            updateLanguage();
+            initAntiCheating();
+            try {
+                await fetchExamDetails();
+                await loadQuestions();
+            } catch (err) {
+                console.error('Initialization failed:', err);
+                showError(translations[currentLang].error.replace('{message}', err.message));
+            }
+        }
+
+        function handleTheme() {
+            const themeBtn = document.getElementById('theme-toggle');
+            if (!themeBtn) {
+                console.error('Theme button not found');
+                return;
+            }
+            themeBtn.onclick = () => {
+                document.body.classList.toggle('light');
+                localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
+                themeBtn.textContent = document.body.classList.contains('light') ? '🌞' : '🌙';
+            };
+            if (localStorage.getItem('theme') === 'light') {
+                document.body.classList.add('light');
+                themeBtn.textContent = '🌞';
+            }
+        }
+
+        function changeLanguage() {
+            currentLang = document.getElementById('lang').value;
+            updateLanguage();
+        }
+
+        function updateLanguage() {
+            const t = translations[currentLang];
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) submitBtn.textContent = t.submit;
+            updateQuestionDisplay();
+        }
+
+        async function fetchExamDetails() {
+            try {
+                console.log(`Fetching exam details for examId: ${examId}`);
+                const response = await fetch(`http://localhost:3000/api/exams/${examId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                console.log(`Exam details response status: ${response.status}`);
+                const result = await response.json();
+                console.log('Exam details:', result);
+                if (!result.success) {
+                    throw new Error(result.error || translations[currentLang].serverError);
+                }
+                const examTitle = document.getElementById('examTitle');
+                if (examTitle && result.titre) {
+                    examTitle.textContent = result.titre + ` - Question ${currentQuestionIndex + 1}/?`;
+                } else {
+                    console.warn('Exam title element or titre missing:', { examTitle, titre: result.titre });
+                }
+                startTimer(result.duree * 60);
+            } catch (err) {
+                console.error('Error fetching exam details:', err);
+                throw err;
+            }
+        }
+
+        async function loadQuestions() {
+            try {
+                console.log(`Fetching questions for examId: ${examId}`);
+                const response = await fetch(`http://localhost:3000/api/questions/${examId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                console.log(`Questions response status: ${response.status}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+                questions = await response.json();
+                console.log('Questions fetched:', questions);
+                if (!Array.isArray(questions) || questions.length === 0) {
+                    throw new Error('Aucune question trouvée pour cet examen.');
+                }
+                maxScore = questions.reduce((sum, question) => sum + (question.points || 0), 0);
+                console.log('Calculated maxScore:', maxScore);
+                const totalQuestions = document.getElementById('totalQuestions');
+                if (totalQuestions) {
+                    totalQuestions.textContent = questions.length;
+                } else {
+                    console.error('Total questions element not found');
+                }
+                await loadQuestion();
+            } catch (err) {
+                console.error('Error fetching questions:', err);
+                throw err;
+            }
+        }
+
+        async function loadQuestion() {
+            if (currentQuestionIndex >= questions.length) {
+                console.log('No more questions. Ending exam.');
+                endExam();
+                return;
+            }
+
+            const question = questions[currentQuestionIndex];
+            console.log(`Loading question ${currentQuestionIndex + 1}:`, question);
+            const questionIndexEl = document.getElementById('questionIndex');
+            const questionTextEl = document.getElementById('questionText');
+            const pointsEl = document.getElementById('points');
+            if (questionIndexEl) {
+                questionIndexEl.textContent = currentQuestionIndex + 1;
+            }
+            if (questionTextEl) {
+                questionTextEl.textContent = question.texte;
+            }
+            if (pointsEl) {
+                pointsEl.textContent = translations[currentLang].points.replace('{points}', question.points);
+            }
+            const choicesEl = document.getElementById('choices');
+            const openAnswerEl = document.getElementById('openAnswer');
+            if (choicesEl) choicesEl.innerHTML = '';
+            if (openAnswerEl) openAnswerEl.style.display = 'none';
+
+            if (question.type === 'QCM') {
+                try {
+                    console.log(`Fetching choices for questionId: ${question.id}`);
+                    const response = await fetch(`http://localhost:3000/api/choices/${question.id}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    console.log(`Choices response status: ${response.status}`);
+                    const choices = await response.json();
+                    console.log('Choices fetched:', choices);
+                    if (choicesEl) {
+                        choices.forEach(choice => {
+                            const div = document.createElement('div');
+                            div.className = 'choice';
+                            div.innerHTML = `<input type="radio" name="choice" value="${choice.id}"> ${choice.texte}`;
+                            choicesEl.appendChild(div);
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error fetching choices:', err);
+                    showError(translations[currentLang].error.replace('{message}', err.message));
+                }
+            } else if (question.type === 'OUVERTE') {
+                if (openAnswerEl) {
+                    openAnswerEl.style.display = 'block';
+                }
+            }
+
+            updateQuestionDisplay();
+        }
+
+        function startTimer(durationInSeconds) {
+            let timeLeft = durationInSeconds || 3600;
+            const timerDisplay = document.getElementById('timer');
+            if (!timerDisplay) {
+                console.error('Timer element not found');
+                return;
+            }
+            const interval = setInterval(() => {
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                timerDisplay.textContent = translations[currentLang].timeRemaining
+                    .replace('{time}', `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`);
+                timeLeft--;
+                if (timeLeft < 0) {
+                    clearInterval(interval);
+                    endExam();
+                }
+            }, 1000);
+        }
+
+        function updateQuestionDisplay() {
+            const t = translations[currentLang];
+            const examTitle = document.getElementById('examTitle');
+            const pointsEl = document.getElementById('points');
+            if (examTitle) {
+                examTitle.textContent = t.examTitle
+                    .replace('{index}', currentQuestionIndex + 1)
+                    .replace('{total}', questions.length || '?');
+            }
+            if (pointsEl && questions[currentQuestionIndex]) {
+                pointsEl.textContent = t.points
+                    .replace('{points}', questions[currentQuestionIndex].points || '?');
+            }
+        }
+
+        async function submitAnswer() {
+            const question = questions[currentQuestionIndex];
+            let answer = null;
+            let choiceId = null;
+
+            if (question.type === 'QCM') {
+                const selected = document.querySelector('input[name="choice"]:checked');
+                if (!selected) {
+                    showError(translations[currentLang].selectAnswer);
+                    return;
+                }
+                choiceId = selected.value;
+            } else if (question.type === 'OUVERTE') {
+                const openAnswerEl = document.getElementById('openAnswer');
+                if (openAnswerEl) {
+                    answer = openAnswerEl.value.trim();
+                    if (!answer) {
+                        showError(translations[currentLang].enterAnswer);
+                        return;
+                    }
+                }
+            }
+
+            try {
+                console.log(`Submitting answer for questionId: ${question.id}, choiceId: ${choiceId}, answer: ${answer}`);
+                const response = await fetch('http://localhost:3000/verifier', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        question_id: question.id,
+                        etudiant: answer,
+                        choix_id: choiceId,
+                        examen_id: examId,
+                        utilisateur_id: userId,
+                        question_index: currentQuestionIndex
+                    })
+                });
+                console.log(`Submit response status: ${response.status}`);
+                const result = await response.json();
+                console.log('Submit response:', result);
+                if (!result.success) {
+                    throw new Error(result.error || translations[currentLang].serverError);
+                }
+
+                totalScore += result.score;
+                localStorage.setItem('lastExamResult', JSON.stringify({
+                    score: totalScore,
+                    max_score: maxScore
+                }));
+
+                if (result.isLastQuestion) {
+                    endExam();
+                } else {
+                    currentQuestionIndex++;
+                    localStorage.setItem('currentQuestionIndex', currentQuestionIndex);
+                    await loadQuestion();
+                }
+            } catch (err) {
+                console.error('Error submitting answer:', err);
+                showError(translations[currentLang].error.replace('{message}', err.message));
+                if (err.message.includes('Accès non autorisé') || err.message.includes('Token invalide')) {
+                    setTimeout(() => window.location.href = 'login.html', 2000);
+                }
+            }
+        }
+
+        function endExam() {
+            const t = translations[currentLang];
+            const questionContainer = document.getElementById('questionContainer');
+            const submitBtn = document.getElementById('submitBtn');
+            const resultEl = document.getElementById('result');
+            if (questionContainer) questionContainer.style.display = 'none';
+            if (submitBtn) submitBtn.style.display = 'none';
+            if (resultEl) {
+                resultEl.style.display = 'block';
+                resultEl.textContent = t.examFinished
+                    .replace('{score}', totalScore)
+                    .replace('{max_score}', maxScore);
+            }
+            localStorage.removeItem('currentQuestionIndex');
+            stopAntiCheating();
+        }
+
+        function confirmExit() {
+            if (confirm(translations[currentLang].examFinished ? 'Voulez-vous vraiment quitter l\'examen ? Vos progrès seront enregistrés.' : 'Do you really want to exit the exam? Your progress will be saved.')) {
+                localStorage.setItem('lastExamResult', JSON.stringify({
+                    score: totalScore,
+                    max_score: maxScore
+                }));
+                stopAntiCheating();
+                window.location.href = 'student.html';
+            }
+        }
+
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            if (errorMessage) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+                setTimeout(() => errorMessage.style.display = 'none', 5000);
+            } else {
+                console.error('Error message element not found');
+            }
+        }
+
+        async function initAntiCheating() {
+            const videoElement = document.getElementById('webcam');
+            const canvasElement = document.getElementById('canvas');
+            const canvasCtx = canvasElement.getContext('2d');
+            const alertElement = document.getElementById('cheat-alert');
+
+            if (typeof FaceMesh === 'undefined') {
+                showError('Erreur : FaceMesh n\'est pas chargé.');
+                console.error('FaceMesh not loaded');
+                return;
+            }
+            if (typeof tf === 'undefined') {
+                showError('Erreur : TensorFlow.js n\'est pas chargé.');
+                console.error('TensorFlow.js not loaded');
+                return;
+            }
+            if (typeof cocoSsd === 'undefined') {
+                showError('Erreur : COCO-SSD n\'est pas chargé.');
+                console.error('COCO-SSD not loaded');
+                return;
+            }
+
+            async function loadObjectDetectionModel() {
+                try {
+                    objectModel = await cocoSsd.load();
+                    console.log('COCO-SSD model loaded successfully');
+                } catch (err) {
+                    showError(translations[currentLang].error.replace('{message}', 'Erreur lors du chargement de COCO-SSD : ' + err.message));
+                }
+            }
+            loadObjectDetectionModel();
+
+            const faceMesh = new FaceMesh({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`,
+            });
+
+            faceMesh.setOptions({
+                maxNumFaces: 2,
+                refineLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5,
+            });
+
+            async function logCheatingEvent(message) {
+                const now = Date.now();
+                if (now - lastCheatLog < 5000) return; // Cooldown de 5 secondes
+                lastCheatLog = now;
+                try {
+                    const response = await fetch('http://localhost:3000/api/cheating', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            userId: userId,
+                            examId: examId,
+                            message: message,
+                            timestamp: new Date().toISOString()
+                        })
+                    });
+                    if (!response.ok) {
+                        console.error('Failed to log cheating event:', response.status);
+                    }
+                } catch (err) {
+                    console.error('Error logging cheating event:', err);
+                }
+            }
+
+            faceMesh.onResults(async (results) => {
+                canvasCtx.save();
+                canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+
+                alertElement.style.display = 'none';
+                alertElement.classList.remove('alert-active');
+
+                const faceCount = results.multiFaceLandmarks ? results.multiFaceLandmarks.length : 0;
+
+                if (objectModel) {
+                    try {
+                        const predictions = await objectModel.detect(videoElement);
+                        let detectedObjects = [];
+                        predictions.forEach((prediction) => {
+                            if (['cell phone', 'book'].includes(prediction.class) && prediction.score > 0.5) {
+                                detectedObjects.push(prediction.class);
+                                canvasCtx.beginPath();
+                                canvasCtx.rect(prediction.bbox[0], prediction.bbox[1], prediction.bbox[2], prediction.bbox[3]);
+                                canvasCtx.strokeStyle = 'yellow';
+                                canvasCtx.lineWidth = 2;
+                                canvasCtx.stroke();
+                            }
+                        });
+                        if (detectedObjects.includes('cell phone')) {
+                            alertElement.style.display = 'block';
+                            alertElement.classList.add('alert-active');
+                            alertElement.textContent = translations[currentLang].phoneDetected;
+                            console.log('Cell phone detected!');
+                            logCheatingEvent('Téléphone détecté');
+                        }
+                    } catch (err) {
+                        console.error('Object detection error:', err);
+                    }
+                }
+
+                if (results.multiFaceLandmarks) {
+                    for (const landmarks of results.multiFaceLandmarks) {
+                        const leftEye = landmarks[33];
+                        const rightEye = landmarks[263];
+                        const nose = landmarks[1];
+                        const leftCheek = landmarks[234];
+                        const rightCheek = landmarks[454];
+                        const leftIris = landmarks[468];
+                        const rightIris = landmarks[473];
+
+                        const minX = Math.min(leftEye.x, leftCheek.x, rightEye.x, rightCheek.x) * canvasElement.width;
+                        const maxX = Math.max(leftEye.x, leftCheek.x, rightEye.x, rightCheek.x) * canvasElement.width;
+                        const minY = Math.min(leftEye.y, nose.y, rightEye.y) * canvasElement.height;
+                        const maxY = Math.max(leftEye.y, nose.y, rightEye.y) * canvasElement.height;
+                        canvasCtx.beginPath();
+                        canvasCtx.rect(minX - 20, minY - 20, maxX - minX + 40, maxY - minY + 40);
+                        canvasCtx.strokeStyle = 'green';
+                        canvasCtx.lineWidth = 2;
+                        canvasCtx.stroke();
+
+                        [33, 263, 468, 473].forEach((index) => {
+                            const landmark = landmarks[index];
+                            const x = landmark.x * canvasElement.width;
+                            const y = landmark.y * canvasElement.height;
+                            canvasCtx.beginPath();
+                            canvasCtx.arc(x, y, index >= 468 ? 2 : 3, 0, 2 * Math.PI);
+                            canvasCtx.fillStyle = index >= 468 ? 'blue' : 'red';
+                            canvasCtx.fill();
+                        });
+
+                        const leftEyeCenterX = leftEye.x;
+                        const rightEyeCenterX = rightEye.x;
+                        const leftIrisRelX = leftIris.x - leftEyeCenterX;
+                        const rightIrisRelX = rightIris.x - rightEyeCenterX;
+                        const leftIrisRelY = leftIris.y - leftEye.y;
+                        const rightIrisRelY = rightIris.y - rightEye.y;
+
+                        let alertMessage = '';
+                        const horizontalThreshold = 0.02;
+                        const verticalThreshold = 0.015;
+
+                        if (leftIrisRelX > horizontalThreshold && rightIrisRelX > horizontalThreshold) {
+                            alertMessage = translations[currentLang].gazeRight;
+                            gazeOffScreenCount++;
+                        } else if (leftIrisRelX < -horizontalThreshold && rightIrisRelX < -horizontalThreshold) {
+                            alertMessage = translations[currentLang].gazeLeft;
+                            gazeOffScreenCount++;
+                        } else if (leftIrisRelY < -verticalThreshold && rightIrisRelY < -verticalThreshold) {
+                            alertMessage = translations[currentLang].gazeUp;
+                            gazeOffScreenCount++;
+                        } else if (leftIrisRelY > verticalThreshold && rightIrisRelY > verticalThreshold) {
+                            alertMessage = translations[currentLang].gazeDown;
+                            gazeOffScreenCount++;
+                        } else {
+                            gazeOffScreenCount = Math.max(0, gazeOffScreenCount - 1);
+                        }
+
+                        if (gazeOffScreenCount > 30) {
+                            alertElement.style.display = 'block';
+                            alertElement.classList.add('alert-active');
+                            alertElement.textContent = alertMessage;
+                            console.log('Gaze detected:', alertMessage);
+                            logCheatingEvent(alertMessage);
+                        }
+
+                        const isOutOfFrame = minX < 0 || maxX > canvasElement.width || minY < 0 || maxY > canvasElement.height;
+                        if (isOutOfFrame) {
+                            outOfFrameCount++;
+                            if (outOfFrameCount > 30) {
+                                alertElement.style.display = 'block';
+                                alertElement.classList.add('alert-active');
+                                alertElement.textContent = translations[currentLang].faceOutOfFrame;
+                                console.log('Face out of frame!');
+                                logCheatingEvent('Visage hors du cadre');
+                            }
+                        } else {
+                            outOfFrameCount = 0;
+                        }
+
+                        const headRotation = Math.abs(nose.x - (leftEye.x + rightEye.x) / 2);
+                        const verticalGaze = nose.y;
+                        if (!isOutOfFrame && (headRotation > 0.3 || verticalGaze < 0.3 || verticalGaze > 0.7)) {
+                            alertCount++;
+                            if (alertCount > 30) {
+                                alertElement.style.display = 'block';
+                                alertElement.classList.add('alert-active');
+                                alertElement.textContent = translations[currentLang].suspiciousRotation;
+                                console.log('Suspicious behavior detected!');
+                                logCheatingEvent('Comportement suspect (rotation du visage)');
+                            }
+                        } else {
+                            alertCount = 0;
+                        }
+                    }
+
+                    if (faceCount > 1) {
+                        alertElement.style.display = 'block';
+                        alertElement.classList.add('alert-active');
+                        alertElement.textContent = translations[currentLang].multipleFaces;
+                        console.log('Multiple faces detected!');
+                        logCheatingEvent('Plusieurs visages détectés');
+                    }
+                } else {
+                    alertCount++;
+                    outOfFrameCount++;
+                    if (alertCount > 30) {
+                        alertElement.style.display = 'block';
+                        alertElement.classList.add('alert-active');
+                        alertElement.textContent = translations[currentLang].noFace;
+                        console.log('No face detected!');
+                        logCheatingEvent('Aucun visage détecté');
+                    }
+                    if (outOfFrameCount > 30) {
+                        alertElement.style.display = 'block';
+                        alertElement.classList.add('alert-active');
+                        alertElement.textContent = translations[currentLang].faceOutOfFrame;
+                        console.log('Face out of frame!');
+                        logCheatingEvent('Visage hors du cadre');
+                    }
+                }
+                canvasCtx.restore();
+            });
+
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                if (videoDevices.length === 0) {
+                    showError(translations[currentLang].error.replace('{message}', 'Aucune webcam détectée. Veuillez connecter une webcam.'));
+                    return;
+                }
+                console.log('Available video devices:', videoDevices);
+
+                camera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        await faceMesh.send({ image: videoElement });
+                    },
+                    width: 200,
+                    height: 150,
+                });
+                await camera.start();
+                console.log('Camera started successfully');
+            } catch (err) {
+                showError(translations[currentLang].error.replace('{message}', 'Erreur lors de l\'initialisation de la caméra : ' + err.message));
+                console.error('Camera error:', err);
+            }
+        }
+
+        function stopAntiCheating() {
+            if (camera) {
+                camera.stop();
+                console.log('Camera stopped');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
