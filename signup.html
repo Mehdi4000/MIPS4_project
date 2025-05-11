@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ExamOnline - Inscription</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+  <style>
+    /* Styles similaires à login.html */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+    body {
+      background: #1a1a2e;
+      color: #fff;
+      overflow-x: hidden;
+      transition: background 0.3s, color 0.3s;
+    }
+    body.light {
+      background: #f0f0f5;
+      color: #333;
+    }
+    #particles-js {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+    .navbar {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+    }
+    .logo {
+      font-size: 24px;
+      font-weight: 600;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      list-style: none;
+    }
+    .nav-links li {
+      margin-left: 20px;
+    }
+    .nav-links a {
+      color: inherit;
+      text-decoration: none;
+      font-size: 16px;
+      transition: color 0.3s;
+    }
+    .nav-links a:hover {
+      color: #00aaff;
+    }
+    #lang, #theme-toggle {
+      background: transparent;
+      color: inherit;
+      border: 1px solid currentColor;
+      padding: 5px;
+      border-radius: 5px;
+    }
+    .signup-section {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .signup-container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 40px;
+      border-radius: 15px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 0 20px rgba(0, 170, 255, 0.3);
+      animation: slideIn 0.5s ease-out;
+    }
+    .signup-container h2 {
+      font-size: 28px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 5px;
+      background: transparent;
+      color: #fff;
+      font-size: 16px;
+    }
+    .form-group input:focus, .form-group select:focus {
+      outline: none;
+      border-color: #00aaff;
+    }
+    .password-group {
+      position: relative;
+    }
+    .password-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: #00aaff;
+    }
+    .btn {
+      background: linear-gradient(45deg, #b4e4fd, #15025a);
+      padding: 12px;
+      border: none;
+      border-radius: 25px;
+      color: #fff;
+      font-size: 16px;
+      width: 100%;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(0, 170, 255, 0.5);
+    }
+    .login-link {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .login-link a {
+      color: #00aaff;
+      text-decoration: none;
+    }
+    .login-link a:hover {
+      text-decoration: underline;
+    }
+    .error-message {
+      color: #ff5555;
+      text-align: center;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .chatbot {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      z-index: 100;
+    }
+    .chatbot-icon {
+      background: linear-gradient(45deg, #a3ddfa, #0b004f);
+      padding: 15px;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(0, 170, 255, 0.5);
+    }
+    @keyframes slideIn {
+      from { transform: translateY(50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="logo">ExamOnline</div>
+    <ul class="nav-links">
+      <li><a href="index.html">Accueil</a></li>
+      <li><a href="login.html">Connexion</a></li>
+      <li>
+        <select id="lang">
+          <option value="fr">Français</option>
+          <option value="en">English</option>
+        </select>
+      </li>
+      <li><button id="theme-toggle">Mode Clair</button></li>
+    </ul>
+  </nav>
+  <div id="particles-js"></div>
+  <section class="signup-section">
+    <div class="signup-container">
+      <h2>Inscription</h2>
+      <div class="error-message" id="error-message"></div>
+      <form id="signup-form">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required>
+        </div>
+        <div class="form-group">
+          <label for="nom">Nom</label>
+          <input type="text" id="nom" name="nom" required>
+        </div>
+        <div class="form-group">
+          <label for="prenom">Prénom</label>
+          <input type="text" id="prenom" name="prenom" required>
+        </div>
+        <div class="form-group">
+          <label for="date_naissance">Date de naissance</label>
+          <input type="date" id="date_naissance" name="date_naissance" required>
+        </div>
+        <div class="form-group">
+          <label for="sexe">Sexe</label>
+          <select id="sexe" name="sexe" required>
+            <option value="M">Masculin</option>
+            <option value="F">Féminin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="etablissement">Établissement</label>
+          <input type="text" id="etablissement" name="etablissement" required>
+        </div>
+        <div class="form-group">
+          <label for="filiere">Filière</label>
+          <input type="text" id="filiere" name="filiere" required>
+        </div>
+        <div class="form-group">
+          <label for="role">Rôle</label>
+          <select id="role" name="role" required>
+            <option value="etudiant">Étudiant</option>
+            <option value="professeur">Professeur</option>
+          </select>
+        </div>
+        <div class="form-group password-group">
+          <label for="password">Mot de passe</label>
+          <input type="password" id="password" name="mot_de_passe" required>
+          <span class="password-toggle" id="password-toggle">👁️</span>
+        </div>
+        <button type="submit" class="btn">S'inscrire</button>
+      </form>
+      <div class="login-link">
+        Déjà un compte ? <a href="login.html">Connectez-vous</a>
+      </div>
+    </div>
+  </section>
+  <div class="chatbot">
+    <div class="chatbot-icon">💬</div>
+  </div>
+  <script>
+    // Initialisation de Particles.js
+    particlesJS('particles-js', {
+      particles: {
+        number: { value: 80, density: { enable: true, value_area: 800 } },
+        color: { value: '#00aaff' },
+        shape: { type: 'circle' },
+        opacity: { value: 0.5, random: true },
+        size: { value: 3, random: true },
+        line_linked: { enable: true, distance: 150, color: '#00aaff', opacity: 0.4, width: 1 },
+        move: { enable: true, speed: 2, direction: 'none', random: true, straight: false, out_mode: 'out', bounce: false }
+      },
+      interactivity: {
+        detect_on: 'canvas',
+        events: { onhover: { enable: true, mode: 'repulse' }, onclick: { enable: true, mode: 'push' }, resize: true },
+        modes: { repulse: { distance: 100, duration: 0.4 }, push: { particles_nb: 4 } }
+      },
+      retina_detect: true
+    });
+
+    // Gestion du thème clair/sombre
+    const themeToggle = document.getElementById('theme-toggle');
+    themeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('light');
+      themeToggle.textContent = document.body.classList.contains('light') ? 'Mode Sombre' : 'Mode Clair';
+    });
+
+    // Afficher/masquer le mot de passe
+    const passwordInput = document.getElementById('password');
+    const passwordToggle = document.getElementById('password-toggle');
+    passwordToggle.addEventListener('click', () => {
+      const type = passwordInput.type === 'password' ? 'text' : 'password';
+      passwordInput.type = type;
+      passwordToggle.textContent = type === 'password' ? '👁️' : '🙈';
+    });
+
+    // Gestion du formulaire d'inscription
+    const signupForm = document.getElementById('signup-form');
+    const errorMessage = document.getElementById('error-message');
+
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorMessage.style.display = 'none';
+
+      const formData = {
+        email: document.getElementById('email').value,
+        nom: document.getElementById('nom').value,
+        prenom: document.getElementById('prenom').value,
+        date_naissance: document.getElementById('date_naissance').value,
+        sexe: document.getElementById('sexe').value,
+        etablissement: document.getElementById('etablissement').value,
+        filiere: document.getElementById('filiere').value,
+        role: document.getElementById('role').value,
+        mot_de_passe: document.getElementById('password').value
+      };
+
+      try {
+        const response = await fetch('http://localhost:3000/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Erreur lors de l’inscription.');
+        }
+
+        // Rediriger vers la page de connexion après une inscription réussie
+        alert('Inscription réussie ! Veuillez vous connecter.');
+        window.location.href = 'login.html';
+      } catch (error) {
+        errorMessage.textContent = error.message;
+        errorMessage.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
