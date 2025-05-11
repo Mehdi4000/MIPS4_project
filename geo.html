@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ma Position GPS avec Stockage</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            z-index: 1000;
+            max-width: 300px;
+        }
+        .error {
+            color: red;
+        }
+        #history {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+        }
+        .history-item {
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <div id="current">Chargement de la position GPS...</div>
+        <div id="history"></div>
+        <button class="btn" onclick="clearHistory()">Effacer l'historique</button>
+    </div>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        function initMap() {
+            const infoDiv = document.getElementById('current');
+            const historyDiv = document.getElementById('history');
+
+            // Vérifier si l'API de géolocalisation est disponible
+            if (!navigator.geolocation) {
+                infoDiv.innerHTML = '<span class="error">La géolocalisation n\'est806 pas prise en charge par votre navigateur.</span>';
+                return;
+            }
+
+            // Initialiser la carte avec une position par défaut
+            const map = L.map('map').setView([0, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Charger l'historique depuis localStorage
+            loadHistory();
+
+            // Obtenir la position GPS
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    const timestamp = new Date().toLocaleString();
+
+                    // Mettre à jour les informations
+                    infoDiv.innerHTML = `
+                        <strong>Votre Position GPS</strong><br>
+                        Latitude: ${lat.toFixed(6)}<br>
+                        Longitude: ${lon.toFixed(6)}<br>
+                        Précision: ±${Math.round(accuracy)} mètres<br>
+                        Date: ${timestamp}
+                    `;
+
+                    // Centrer la carte sur la position GPS
+                    map.setView([lat, lon], 15);
+
+                    // Ajouter un marqueur
+                    L.marker([lat, lon]).addTo(map)
+                        .bindPopup(`<b>Votre position exacte</b><br>Lat: ${lat.toFixed(6)}<br>Lon: ${lon.toFixed(6)}<br>Précision: ±${Math.round(accuracy)}m<br>Date: ${timestamp}`)
+                        .openPopup();
+
+                    // Ajouter un cercle pour la précision
+                    L.circle([lat, lon], {
+                        radius: accuracy,
+                        color: 'blue',
+                        fillColor: '#30f',
+                        fillOpacity: 0.1
+                    }).addTo(map);
+
+                    // Stocker les coordonnées
+                    saveCoordinates(lat, lon, accuracy, timestamp);
+                },
+                (error) => {
+                    console.error('Erreur GPS:', error);
+                    let errorMessage = 'Erreur inconnue';
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = 'Permission de géolocalisation refusée.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = 'Position indisponible.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = 'Délai d\'attente dépassé.';
+                            break;
+                    }
+                    infoDiv.innerHTML = `<span class="error">Erreur: ${errorMessage}</span>`;
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        // Fonction pour sauvegarder les coordonnées dans localStorage
+        function saveCoordinates(lat, lon, accuracy, timestamp) {
+            let history = JSON.parse(localStorage.getItem('gpsHistory')) || [];
+            history.push({ lat, lon, accuracy, timestamp });
+            localStorage.setItem('gpsHistory', JSON.stringify(history));
+            loadHistory();
+        }
+
+        // Fonction pour charger et afficher l'historique
+        function loadHistory() {
+            const historyDiv = document.getElementById('history');
+            let history = JSON.parse(localStorage.getItem('gpsHistory')) || [];
+            historyDiv.innerHTML = '<strong>Historique des positions</strong>';
+            if (history.length === 0) {
+                historyDiv.innerHTML += '<p>Aucune position enregistrée.</p>';
+                return;
+            }
+            history.forEach((entry, index) => {
+                historyDiv.innerHTML += `
+                    <div class="history-item">
+                        <strong>Position ${index + 1}</strong><br>
+                        Lat: ${entry.lat.toFixed(6)}<br>
+                        Lon: ${entry.lon.toFixed(6)}<br>
+                        Précision: ±${Math.round(entry.accuracy)}m<br>
+                        Date: ${entry.timestamp}
+                    </div>
+                `;
+            });
+        }
+
+        // Fonction pour effacer l'historique
+        function clearHistory() {
+            localStorage.removeItem('gpsHistory');
+            loadHistory();
+        }
+
+        // Appeler la fonction d'initialisation
+        initMap();
+    </script>
+</body>
+</html>
